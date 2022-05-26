@@ -1,0 +1,23 @@
+{
+  "name": "@kurtbuilds/env",
+  "version": "1.0.5",
+  "description": "",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "module": "index.js",
+  "scripts": {
+    "publish": "tsc"
+  },
+  "files": [
+    "src",
+    "**/*.js",
+    "**/*.js.map",
+    "**/*.d.ts"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^16.11.7",
+    "typescript": "^4.4.4"
+  }
+}
