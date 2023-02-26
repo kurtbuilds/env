@@ -34,9 +34,11 @@ pub enum Line {
     Comment(String),
 }
 
+#[derive(Debug)]
 pub struct EnvFile {
     pub(crate) lines: Vec<Line>,
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
+    modified: bool,
 }
 
 
@@ -59,6 +61,7 @@ impl EnvFile {
                 })
                 .collect(),
             path: path.as_ref().into(),
+            modified: false,
         }
     }
 
@@ -70,6 +73,7 @@ impl EnvFile {
                 Line::Pair(Pair { key: k, .. }) => {
                     if k == key {
                         message = Some(format!("{}: Removed {}", path, key));
+                        self.modified = true;
                     }
                     key != key
                 }
@@ -163,6 +167,22 @@ impl EnvFile {
         EnvIter {
             env: self,
             i: 0,
+        }
+    }
+
+    pub fn clone_to_path(&self, path: &Path) -> Self {
+        Self {
+            lines: self.lines.clone(),
+            path: path.to_path_buf(),
+            modified: true,
+        }
+    }
+
+    pub fn save_if_modified(&self) -> io::Result<()> {
+        if self.modified {
+            self.save()
+        } else {
+            Ok(())
         }
     }
 }
