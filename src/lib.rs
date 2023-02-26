@@ -1,9 +1,36 @@
 use std::{fs, io};
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone)]
+pub struct Pair {
+    pub key: String,
+    pub value: String,
+}
+
+impl From<&str> for Pair {
+    fn from(s: &str) -> Self {
+        let mut split = s.splitn(2, '=');
+        let pair = (split.next().unwrap().into(), split.next().unwrap().into());
+        Pair {
+            key: pair.0,
+            value: pair.1,
+        }
+    }
+}
+
+impl From<(&str, &str)> for Pair {
+    fn from(pair: (&str, &str)) -> Self {
+        Pair {
+            key: pair.0.into(),
+            value: pair.1.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Line {
     Blank,
-    Pair(String, String),
+    Pair(Pair),
     Comment(String),
 }
 
@@ -26,8 +53,8 @@ impl EnvFile {
                         Line::Blank
                     } else {
                         let mut split = line.splitn(2, '=');
-                        let pair = (split.next().unwrap().into(), split.next().unwrap().into());
-                        Line::Pair(pair.0, pair.1)
+                        let pair = (split.next().unwrap(), split.next().unwrap()).into();
+                        Line::Pair(pair)
                     }
                 })
                 .collect(),
@@ -35,46 +62,46 @@ impl EnvFile {
         }
     }
 
-    pub fn remove(&mut self, key: &str) {
+    pub fn remove(&mut self, key: &str) -> Option<String> {
         let path = self.path.display();
+        let mut message = None;
         self.lines.retain(|line| {
             match line {
-                Line::Pair(k, _) => {
-                    if key == k {
-                        eprintln!("{}: Removed {}", path, k);
+                Line::Pair(Pair { key: k, .. }) => {
+                    if k == key {
+                        message = Some(format!("{}: Removed {}", path, key));
                     }
-                    k != key
-                },
+                    key != key
+                }
                 _ => true,
             }
-        })
+        });
+        message
     }
 
-    pub fn has_value(&self, key: &str) -> bool {
+    /// Check if a non-empty value exists for the given key
+    pub fn has_value(&self, k: &str) -> bool {
         self.lines.iter().any(|p| match p {
-            Line::Blank => false,
-            Line::Pair(k, v) => k == key && !v.is_empty(),
-            Line::Comment(_) => false,
+            Line::Pair(Pair { key, value }) => k == key && !value.is_empty(),
+            _ => false,
         })
     }
 
-    pub fn has_key(&self, key: &str) -> bool {
+    pub fn has_key(&self, k: &str) -> bool {
         self.lines.iter().any(|p| match p {
-            Line::Blank => false,
-            Line::Pair(k, _) => k == key,
-            Line::Comment(_) => false,
+            Line::Pair(Pair { key, .. }) => k == key,
+            _ => false,
         })
     }
 
-    pub fn lookup(&self, key: &str) -> Option<String> {
+    pub fn lookup(&self, lookup: &str) -> Option<String> {
         self.lines.iter().find_map(|p| match p {
-            Line::Blank => None,
-            Line::Pair(k, value) => if k == key {
+            Line::Pair(Pair { key, value }) => if lookup == key {
                 Some(value.to_string())
             } else {
                 None
             },
-            Line::Comment(_) => None,
+            _ => None,
         })
     }
 
@@ -83,22 +110,22 @@ impl EnvFile {
         for line in &mut self.lines {
             match line {
                 Line::Blank => {}
-                Line::Pair(k, existing_value) => {
+                Line::Pair(Pair { key: k, value: existing_value }) => {
                     if key == k {
                         return if value == existing_value {
                             None
                         } else if value.is_empty() && !existing_value.is_empty() {
                             Some(format!("{}: {} already exists", self.path.display(), key))
                         } else {
-                            *line = Line::Pair(key.to_string(), value.to_string());
+                            *line = Line::Pair(Pair { key: key.to_string(), value: value.to_string() });
                             Some(format!("{}: Updated {}={}", self.path.display(), key, value))
-                        }
+                        };
                     }
                 }
                 Line::Comment(_) => {}
             }
         }
-        self.lines.push(Line::Pair(key.into(), value.into()));
+        self.lines.push(Line::Pair(Pair { key: key.into(), value: value.into() }));
         return Some(format!("{}: Added {}={}", self.path.display(), key, value));
     }
 
@@ -107,11 +134,11 @@ impl EnvFile {
             .iter()
             .map(|line| match line {
                 Line::Blank => String::new(),
-                Line::Pair(key, value) => format!("{}={}", key, value),
+                Line::Pair(Pair { key, value }) => format!("{}={}", key, value),
                 Line::Comment(line) => line.to_string(),
             })
             .collect::<Vec<String>>()
-            .join("\n")
+            .join("\n"),
         )
     }
 
@@ -119,12 +146,12 @@ impl EnvFile {
         let newlines = envfile.lines.iter()
             .map(|line| match line {
                 Line::Blank => Line::Blank,
-                Line::Pair(key, _) => {
+                Line::Pair(Pair { key, .. }) => {
                     let value = self.lookup(key);
                     if value.is_none() {
                         eprintln!("{}: Added {}=", self.path.display(), key);
                     }
-                    Line::Pair(key.to_string(), value.unwrap_or("".to_string()))
+                    Line::Pair(Pair { key: key.to_string(), value: value.unwrap_or("".to_string()) })
                 }
                 Line::Comment(com) => Line::Comment(com.to_string()),
             })
@@ -135,7 +162,7 @@ impl EnvFile {
     pub fn iter(&self) -> EnvIter {
         EnvIter {
             env: self,
-            i: 0
+            i: 0,
         }
     }
 }
@@ -165,7 +192,7 @@ impl<'a> Iterator for EnvIter<'a> {
             let x = unsafe { self.env.lines.get_unchecked(self.i) };
             self.i += 1;
             match x {
-                Line::Pair(k, v) => return Some((k, v)),
+                Line::Pair(Pair { key: k, value: v }) => return Some((k, v)),
                 _ => {}
             }
         }
