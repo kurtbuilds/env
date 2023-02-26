@@ -205,14 +205,14 @@ pub struct EnvIter<'a> {
 }
 
 impl<'a> Iterator for EnvIter<'a> {
-    type Item = (&'a String, &'a String);
+    type Item = (&'a str, &'a str);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.i < self.env.lines.len() {
             let x = unsafe { self.env.lines.get_unchecked(self.i) };
             self.i += 1;
             match x {
-                Line::Pair(Pair { key: k, value: v }) => return Some((k, v)),
+                Line::Pair(Pair { key: k, value: v }) => return Some((k.as_str(), v.as_str())),
                 _ => {}
             }
         }
