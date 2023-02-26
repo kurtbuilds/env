@@ -188,7 +188,7 @@ impl EnvFile {
 }
 
 impl<'a> IntoIterator for &'a EnvFile {
-    type Item = (&'a String, &'a String);
+    type Item = (&'a str, &'a str);
     type IntoIter = EnvIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
