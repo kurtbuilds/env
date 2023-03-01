@@ -161,6 +161,7 @@ impl EnvFile {
             })
             .collect();
         self.lines = newlines;
+        self.modified = true;
     }
 
     pub fn iter(&self) -> EnvIter {
