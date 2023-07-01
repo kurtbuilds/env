@@ -122,6 +122,7 @@ impl EnvFile {
                             Some(format!("{}: {} already exists", self.path.display(), key))
                         } else {
                             *line = Line::Pair(Pair { key: key.to_string(), value: value.to_string() });
+                            self.modified = true;
                             Some(format!("{}: Updated {}={}", self.path.display(), key, value))
                         };
                     }
@@ -130,6 +131,7 @@ impl EnvFile {
             }
         }
         self.lines.push(Line::Pair(Pair { key: key.into(), value: value.into() }));
+        self.modified = true;
         return Some(format!("{}: Added {}={}", self.path.display(), key, value));
     }
 
