@@ -6,5 +6,8 @@ license = "MIT"
 description = "A simple dotenv file parser for Rust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
+name = "env"
 
 [dependencies]
