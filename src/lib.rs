@@ -46,25 +46,34 @@ pub fn read(path: impl AsRef<Path>) -> io::Result<EnvFile> {
     EnvFile::read(path)
 }
 
+fn parse_lines(s: &str) -> Vec<Line> {
+    s.split('\n')
+        .map(|line| {
+            let line = line.trim();
+            if line.starts_with('#') {
+                Line::Comment(line.into())
+            } else if line.is_empty() {
+                Line::Blank
+            } else {
+                let mut split = line.splitn(2, '=');
+                let pair = (split.next().unwrap(), split.next().unwrap()).into();
+                Line::Pair(pair)
+            }
+        })
+        .collect()
+}
+
 impl EnvFile {
+    pub fn parse(s: &str) -> Self {
+        EnvFile { lines: parse_lines(s), path: PathBuf::new(), modified: false }
+    }
+
     pub fn read<T: AsRef<Path>>(path: T) -> io::Result<Self> {
-        let s = fs::read_to_string(&path)?;
+        let path = path.as_ref();
+        let s = fs::read_to_string(path)?;
         Ok(EnvFile {
-            lines: s.split('\n')
-                .map(|line| {
-                    let line = line.trim();
-                    if line.starts_with('#') {
-                        Line::Comment(line.into())
-                    } else if line.is_empty() {
-                        Line::Blank
-                    } else {
-                        let mut split = line.splitn(2, '=');
-                        let pair = (split.next().unwrap(), split.next().unwrap()).into();
-                        Line::Pair(pair)
-                    }
-                })
-                .collect(),
-            path: path.as_ref().into(),
+            lines: parse_lines(&s),
+            path: path.to_path_buf(),
             modified: false,
         })
     }
@@ -102,10 +111,10 @@ impl EnvFile {
         })
     }
 
-    pub fn lookup(&self, lookup: &str) -> Option<String> {
+    pub fn lookup(&self, lookup: &str) -> Option<&str> {
         self.lines.iter().find_map(|p| match p {
             Line::Pair(Pair { key, value }) => if lookup == key {
-                Some(value.to_string())
+                Some(value.as_str())
             } else {
                 None
             },
@@ -161,7 +170,7 @@ impl EnvFile {
                     if value.is_none() {
                         eprintln!("{}: Added {}=", self.path.display(), key);
                     }
-                    Line::Pair(Pair { key: key.to_string(), value: value.unwrap_or("".to_string()) })
+                    Line::Pair(Pair { key: key.to_string(), value: value.unwrap_or_default().to_string() })
                 }
                 Line::Comment(com) => Line::Comment(com.to_string()),
             })
