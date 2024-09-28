@@ -1,5 +1,5 @@
 [package]
-name = "env2"
+name = "kurtbuilds_env"
 version = "0.3.2"
 edition = "2021"
 license = "MIT"

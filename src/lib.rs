@@ -42,10 +42,14 @@ pub struct EnvFile {
 }
 
 
+pub fn read(path: impl AsRef<Path>) -> io::Result<EnvFile> {
+    EnvFile::read(path)
+}
+
 impl EnvFile {
-    pub fn read<T: AsRef<Path>>(path: T) -> Self {
-        let s = fs::read_to_string(&path).expect(&format!("Failed to read file: {} ", path.as_ref().display()));
-        EnvFile {
+    pub fn read<T: AsRef<Path>>(path: T) -> io::Result<Self> {
+        let s = fs::read_to_string(&path)?;
+        Ok(EnvFile {
             lines: s.split('\n')
                 .map(|line| {
                     let line = line.trim();
@@ -62,7 +66,7 @@ impl EnvFile {
                 .collect(),
             path: path.as_ref().into(),
             modified: false,
-        }
+        })
     }
 
     pub fn remove(&mut self, key: &str) -> Option<String> {
